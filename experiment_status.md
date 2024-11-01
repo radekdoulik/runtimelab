@@ -1,8 +1,25 @@
+# Status 01-NOV-2024
+
+Audit of W^X locations in CoreCLR has yielded locations that need investigation. The section below links to all locations where generated code is manipulated at run-time and indicates a scenario that needs consideration. Jan Vorlicek did a quick check on the list and added a high level thought on relevance to the CoreCLR interpreter track.
+
+This experimental branch (feature/CoreclrInterpreter) in dotnet/runtimelab is now able to run the interpreter for a "Hello, World" scenario. The work yielded various missing features in the CoreCLR implementation (for example, `UnmanagedCallersOnly`). This work was a result of the multi-year effort to move more code into C#.
+
+Aaron Robinson and Andrew Au are investigating the representation of `PCODE` that should be interpreted. This scenario can most easily be thought of as the result of the `ldftn` instruction and/or a functions pointer in a managed vtable slot.
+
+Current questions being investigated:
+
+* Is a new managed calling convention appropriate?
+  * What are the trade offs? (performance, runtime development in native debugger, impact on native AOT/R2R call sites, FCall/QCall)
+* How to hide extra data in a `PCODE` pointer and then unpack it.
+* Can we narrow the support for the interpreter to make it simpler and force the more complex scenarios (interop, FCall) to require native AOT/R2R?
+
+## Audit W^X locations
+
 Uses of `ExecutableWriterHolder` and `ExecutableWriterHolderNoLog` under `src\coreclr`.
 
 **Collected at hash `9ceb2bfd35ad8edd0342d2b10fef2860ad86ac9b`**
 
-## JanV analysis:
+### JanV analysis:
 
 * Let's ignore the debugger stuff for now, the debugger will need some other way to set breakpoints and step that will be platform specific.
 * The LoaderHeap won't be used by the interpreter, it manages memory for various stubs and we need to decide on what we would do with each of the stub.
@@ -29,7 +46,7 @@ Uses of `ExecutableWriterHolder` and `ExecutableWriterHolderNoLog` under `src\co
 * ThisPtrRetBufPrecode -  will need to be replaced by some other mechanism
 
 
-## `src\coreclr\debug\ee\controller.cpp`:
+### `src\coreclr\debug\ee\controller.cpp`:
 
 Debugger patching for breakpoints.
 
@@ -68,7 +85,7 @@ Patch skipping.
   4402  #else // HOST_OSX && HOST_ARM64
 ```
 
-## `src\coreclr\debug\ee\controller.h`:
+### `src\coreclr\debug\ee\controller.h`:
 
 Lifetime management of shared patch - `AddRef()` / `Release()`
 ```
@@ -85,7 +102,7 @@ Lifetime management of shared patch - `AddRef()` / `Release()`
   285  #else // !DACCESS_COMPILE && HOST_OSX && HOST_ARM64
 ```
 
-## `src\coreclr\debug\ee\debugger.cpp`:
+### `src\coreclr\debug\ee\debugger.cpp`:
 
 arm64/macOS: Used for FuncEval
 ```
@@ -96,7 +113,7 @@ arm64/macOS: Used for FuncEval
   1332  #else // !DBI_COMPILE && !DACCESS_COMPILE && HOST_OSX && HOST_ARM64
 ```
 
-## `src\coreclr\debug\ee\debugger.h`:
+### `src\coreclr\debug\ee\debugger.h`:
 
 arm64/macOS: Management of `DebuggerHeapExecutableMemoryPage`
 ```
@@ -119,7 +136,7 @@ arm64/macOS: Management of `DebuggerHeapExecutableMemoryPage`
   1233  #else
 ```
 
-## `src\coreclr\debug\ee\arm64\walker.cpp`:
+### `src\coreclr\debug\ee\arm64\walker.cpp`:
 
 arm64/macOS: Used for walking and patch skipping - see `controller.cpp` that that is the single caller for this method.
 ```
@@ -130,7 +147,7 @@ arm64/macOS: Used for walking and patch skipping - see `controller.cpp` that tha
   182  #else // HOST_OSX && HOST_ARM64
 ```
 
-## `src\coreclr\debug\inc\arm64\primitives.h`:
+### `src\coreclr\debug\inc\arm64\primitives.h`:
 
 macOS: Setting of current instruction - `CORDbgSetInstruction()`.
 ```
@@ -141,7 +158,7 @@ macOS: Setting of current instruction - `CORDbgSetInstruction()`.
   156      TADDR ptraddr = dac_cast<TADDR>(instructionWriterHolder.GetRW());
 ```
 
-## `src\coreclr\utilcode\loaderheap.cpp`:
+### `src\coreclr\utilcode\loaderheap.cpp`:
 
 DEBUG mechanism to "invalidate" some memory.
 ```
@@ -207,7 +224,7 @@ DEBUG check in `UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow`
   1772      {
 ```
 
-## `src\coreclr\vm\ceeload.cpp`:
+### `src\coreclr\vm\ceeload.cpp`:
 
 `Module::FixupVTables()` - C++/CLI or COM interop?
 
@@ -230,7 +247,7 @@ All under the following branch:
   3344
 ```
 
-## `src\coreclr\vm\class.cpp`:
+### `src\coreclr\vm\class.cpp`:
 
 Clean-up in `EEClass::Destruct` for `Delegate`s that have a shuffle thunk.
 ```
@@ -241,7 +258,7 @@ Clean-up in `EEClass::Destruct` for `Delegate`s that have a shuffle thunk.
   142              }
 ```
 
-## `src\coreclr\vm\clrtocomcall.cpp`:
+### `src\coreclr\vm\clrtocomcall.cpp`:
 
 `CLRToCOMCall::GetRetThunk`
 ```
@@ -252,7 +269,7 @@ Clean-up in `EEClass::Destruct` for `Delegate`s that have a shuffle thunk.
   987
 ```
 
-## `src\coreclr\vm\codeman.cpp`:
+### `src\coreclr\vm\codeman.cpp`:
 
 `CodeFragmentHeap::RealBackoutMem` - Zero out passed in memory.
 ```
@@ -305,7 +322,7 @@ Clean-up in `EEClass::Destruct` for `Delegate`s that have a shuffle thunk.
   5051      // allocate a new jumpstub from 'curBlock' if it is not fully allocated
 ```
 
-## `src\coreclr\vm\comcallablewrapper.cpp`:
+### `src\coreclr\vm\comcallablewrapper.cpp`:
 
 `ComPreStubWorker` - replace prestub with new stub.
 ```
@@ -385,7 +402,7 @@ Clean-up in `EEClass::Destruct` for `Delegate`s that have a shuffle thunk.
   4478
 ```
 
-## `src\coreclr\vm\comcallablewrapper.h`:
+### `src\coreclr\vm\comcallablewrapper.h`:
 
 Lifetime management, `AddRef()`/`Release()`, for `ComMethodTable`.
 ```
@@ -411,7 +428,7 @@ Lifetime management, `AddRef()`/`Release()`, for `ComMethodTable`.
   675              comMTWriterHolder.GetRW()->m_Flags |= enum_GuidGenerated;
 ```
 
-## `src\coreclr\vm\comdelegate.cpp`:
+### `src\coreclr\vm\comdelegate.cpp`:
 
 `SetupShuffleThunk`
 ```
@@ -437,7 +454,7 @@ Lifetime management, `AddRef()`/`Release()`, for `ComMethodTable`.
   1382              // MethodDesc is passed in for profiling to know the method desc of target
 ```
 
-## `src\coreclr\vm\comtoclrcall.cpp`:
+### `src\coreclr\vm\comtoclrcall.cpp`:
 
 non-x86: `ComCallMethodDesc::CreateCOMToCLRStub`
 ```
@@ -466,7 +483,7 @@ x86: `ComCallMethodDesc::InitRuntimeNativeInfo`
   1291
 ```
 
-## `src\coreclr\vm\dllimportcallback.cpp`:
+### `src\coreclr\vm\dllimportcallback.cpp`:
 
 `UMEntryThunkFreeList::AddToList` - set next free thunk.
 ```
@@ -507,7 +524,7 @@ x86: `ComCallMethodDesc::InitRuntimeNativeInfo`
   262
 ```
 
-## `src\coreclr\vm\dllimportcallback.h`:
+### `src\coreclr\vm\dllimportcallback.h`:
 
 `UMEntryThunk::RunTimeInit` - initialize members.
 ```
@@ -518,7 +535,7 @@ x86: `ComCallMethodDesc::InitRuntimeNativeInfo`
   186
 ```
 
-## `src\coreclr\vm\dynamicmethod.cpp`:
+### `src\coreclr\vm\dynamicmethod.cpp`:
 
 64-bit: `HostCodeHeap::InitializeHeapList`
 ```
@@ -592,7 +609,7 @@ x86: `ComCallMethodDesc::InitRuntimeNativeInfo`
   858
 ```
 
-## `src\coreclr\vm\gccover.cpp`:
+### `src\coreclr\vm\gccover.cpp`:
 
 Various GC stress operations.
 
@@ -634,7 +651,7 @@ Various GC stress operations.
   1730              {
 ```
 
-## `src\coreclr\vm\jitinterface.cpp`:
+### `src\coreclr\vm\jitinterface.cpp`:
 
 `CEEJitInfo::WriteCodeBytes` - Called by `CEEJitInfo::WriteCode` and `CEEJitInfo::BackoutJitData`.
 ```
@@ -645,7 +662,7 @@ Various GC stress operations.
   10905      }
 ```
 
-## `src\coreclr\vm\methoddescbackpatchinfo.cpp`:
+### `src\coreclr\vm\methoddescbackpatchinfo.cpp`:
 
 `EntryPointSlots::Backpatch_Locked` - `SlotType_Executable` and `SlotType_ExecutableRel32` cases.
 ```
@@ -662,7 +679,7 @@ Various GC stress operations.
   52              // fall through
 ```
 
-## `src\coreclr\vm\precode.cpp`:
+### `src\coreclr\vm\precode.cpp`:
 
 `Precode::Allocate` - Only for `PRECODE_THISPTR_RETBUF`.
 ```
@@ -682,7 +699,7 @@ Various GC stress operations.
   357          ClrFlushInstructionCache(this, SizeOf(), /* hasCodeExecutedBefore */ true);
 ```
 
-## `src\coreclr\vm\prestub.cpp`:
+### `src\coreclr\vm\prestub.cpp`:
 
 `MethodDesc::DoPrestub` - Where the stub doesn't have an external entry point, `EXTERNAL_ENTRY_BIT`.
 ```
@@ -693,7 +710,7 @@ Various GC stress operations.
   2999              }
 ```
 
-## `src\coreclr\vm\stubcache.cpp`:
+### `src\coreclr\vm\stubcache.cpp`:
 
 `StubCacheBase::~StubCacheBase`
 ```
@@ -719,7 +736,7 @@ Various GC stress operations.
   156          }
 ```
 
-## `src\coreclr\vm\stublink.cpp`:
+### `src\coreclr\vm\stublink.cpp`:
 
 `StubUnwindInfoSegmentBoundaryReservationList` - clean-up and initialization scenarios.
 ```
@@ -754,7 +771,7 @@ Various GC stress operations.
   2167      if (pHeap == NULL)
 ```
 
-## `src\coreclr\vm\threads.cpp`:
+### `src\coreclr\vm\threads.cpp`:
 
 `InitThreadManager()` - `if (IsWriteBarrierCopyEnabled())`
 ```
@@ -765,7 +782,7 @@ Various GC stress operations.
   1061          }
 ```
 
-## `src\coreclr\vm\threadsuspend.cpp`:
+### `src\coreclr\vm\threadsuspend.cpp`:
 
 GC stress scenario.
 ```
@@ -776,7 +793,7 @@ GC stress scenario.
   3576  #if defined(TARGET_X86) || defined(TARGET_AMD64)
 ```
 
-## `src\coreclr\vm\virtualcallstub.cpp`:
+### `src\coreclr\vm\virtualcallstub.cpp`:
 
 `VirtualCallStubManager::GenerateVTableCallStub`
 ```
@@ -823,7 +840,7 @@ GC stress scenario.
   2646      lookupWriterHolder.GetRW()->Initialize(holder, addrOfResolver, dispatchToken);
 ```
 
-## `src\coreclr\vm\amd64\cgenamd64.cpp`:
+### `src\coreclr\vm\amd64\cgenamd64.cpp`:
 
 `UMEntryThunkCode::Poison()`
 ```
@@ -852,7 +869,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   1000      argsWriterHolder.GetRW()->signature = pLookup->signature;
 ```
 
-## `src\coreclr\vm\amd64\jitinterfaceamd64.cpp`:
+### `src\coreclr\vm\amd64\jitinterfaceamd64.cpp`:
 
 `WriteBarrierManager::ChangeWriteBarrierTo` - Alter the `JIT_WriteBarrier`?
 ```
@@ -917,7 +934,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   917          stompWBCompleteActions |= SWB_ICACHE_FLUSH;
 ```
 
-## `src\coreclr\vm\arm\cgencpu.h`:
+### `src\coreclr\vm\arm\cgencpu.h`:
 
 `ThisPtrRetBufPrecode::SetTargetInterlocked`
 ```
@@ -928,7 +945,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   1072      }
 ```
 
-## `src\coreclr\vm\arm\singlestepper.cpp`:
+### `src\coreclr\vm\arm\singlestepper.cpp`:
 
 `ArmSingleStepper::Apply`
 ```
@@ -940,7 +957,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
 
 ```
 
-## `src\coreclr\vm\arm\stubs.cpp`:
+### `src\coreclr\vm\arm\stubs.cpp`:
 
 `CopyWriteBarrier`
 ```
@@ -984,7 +1001,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   2026      argsWriterHolder.GetRW()->signature = pLookup->signature;
 ```
 
-## `src\coreclr\vm\arm64\cgencpu.h`:
+### `src\coreclr\vm\arm64\cgencpu.h`:
 
 `ThisPtrRetBufPrecode::SetTargetInterlocked`
 ```
@@ -995,7 +1012,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   615              (LONGLONG*)&precodeWriterHolder.GetRW()->m_pTarget, (TADDR)target, (TADDR)expected) == expected;
 ```
 
-## `src\coreclr\vm\arm64\singlestepper.cpp`:
+### `src\coreclr\vm\arm64\singlestepper.cpp`:
 
 `Arm64SingleStepper::Apply`
 ```
@@ -1006,7 +1023,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   204      if (TryEmulate(pCtx, opcode, false))
 ```
 
-## `src\coreclr\vm\arm64\stubs.cpp`:
+### `src\coreclr\vm\arm64\stubs.cpp`:
 
 `UpdateWriteBarrierState`
 ```
@@ -1044,7 +1061,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   1954      argsWriterHolder.GetRW()->signature = pLookup->signature;
 ```
 
-## `src\coreclr\vm\i386\cgenx86.cpp`:
+### `src\coreclr\vm\i386\cgenx86.cpp`:
 
 `UMEntryThunkCode::Poison()` for invalidating thunk.
 ```
@@ -1073,7 +1090,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   1276      argsWriterHolder.GetRW()->signature = pLookup->signature;
 ```
 
-## `src\coreclr\vm\i386\jitinterfacex86.cpp`:
+### `src\coreclr\vm\i386\jitinterfacex86.cpp`:
 
 Insert write barriers.
 ```
@@ -1099,7 +1116,7 @@ Update write barrier based on ephemeral ranges.
   1084          {
 ```
 
-## `src\coreclr\vm\i386\stublinkerx86.cpp`:
+### `src\coreclr\vm\i386\stublinkerx86.cpp`:
 
 `ThisPtrRetBufPrecode::SetTargetInterlocked`
 ```
@@ -1110,7 +1127,7 @@ Update write barrier based on ephemeral ranges.
   3144
 ```
 
-## `src\coreclr\vm\loongarch64\cgencpu.h`:
+### `src\coreclr\vm\loongarch64\cgencpu.h`:
 
 `ThisPtrRetBufPrecode::SetTargetInterlocked`
 ```
@@ -1121,7 +1138,7 @@ Update write barrier based on ephemeral ranges.
   531              (LONGLONG*)&precodeWriterHolder.GetRW()->m_pTarget, (TADDR)target, (TADDR)expected) == expected;
 ```
 
-## `src\coreclr\vm\loongarch64\singlestepper.cpp`:
+### `src\coreclr\vm\loongarch64\singlestepper.cpp`:
 
 `LoongArch64SingleStepper::Apply`
 ```
@@ -1132,7 +1149,7 @@ Update write barrier based on ephemeral ranges.
   202      if (TryEmulate(pCtx, opcode, false))
 ```
 
-## `src\coreclr\vm\loongarch64\stubs.cpp`:
+### `src\coreclr\vm\loongarch64\stubs.cpp`:
 
 `UpdateWriteBarrierState`
 ```
@@ -1170,7 +1187,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   1780      argsWriterHolder.GetRW()->signature = pLookup->signature;
 ```
 
-## `src\coreclr\vm\riscv64\cgencpu.h`:
+### `src\coreclr\vm\riscv64\cgencpu.h`:
 
 `ThisPtrRetBufPrecode::SetTargetInterlocked`
 ```
@@ -1181,7 +1198,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   503              (LONGLONG*)&precodeWriterHolder.GetRW()->m_pTarget, (TADDR)target, (TADDR)expected) == expected;
 ```
 
-## `src\coreclr\vm\riscv64\singlestepper.cpp`:
+### `src\coreclr\vm\riscv64\singlestepper.cpp`:
 
 `RiscV64SingleStepper::Apply`
 ```
@@ -1192,7 +1209,7 @@ Defined in `BEGIN_DYNAMIC_HELPER_EMIT` macro and used in many functions on `Dyna
   179      if (TryEmulate(pCtx, opcode, false))
 ```
 
-## `src\coreclr\vm\riscv64\stubs.cpp`:
+### `src\coreclr\vm\riscv64\stubs.cpp`:
 ```
    801      BYTE *writeBarrierCodeStart = GetWriteBarrierCodeLocation((void*)JIT_PatchedCodeStart);
    802      BYTE *writeBarrierCodeStartRW = writeBarrierCodeStart;
