@@ -738,7 +738,9 @@ REDHAWK_PALIMPORT bool REDHAWK_PALAPI PalSetCurrentThreadName(const char* name)
 #ifdef __APPLE__
     pthread_setname_np(name_copy);
 #else
+#if !HOST_WASM
     pthread_setname_np(pthread_self(), name_copy);
+#endif // !HOST_WASM
 #endif //__APPLE__
     return true;
 }
