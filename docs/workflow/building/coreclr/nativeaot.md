@@ -63,8 +63,8 @@ It is also possible to publish an ordinary console project for Wasm using packag
 and the following two references to the project file itself:
 ```xml
 <ItemGroup>
-  <PackageReference Include="Microsoft.DotNet.ILCompiler.LLVM" Version="9.0.0-dev" />
-  <PackageReference Include="runtime.$(NETCoreSdkPortableRuntimeIdentifier).Microsoft.DotNet.ILCompiler.LLVM" Version="9.0.0-dev" />
+  <PackageReference Include="Microsoft.DotNet.ILCompiler.LLVM" Version="10.0.0-dev" />
+  <PackageReference Include="runtime.$(NETCoreSdkPortableRuntimeIdentifier).Microsoft.DotNet.ILCompiler.LLVM" Version="10.0.0-dev" />
 </ItemGroup>
 ```
 You should now be able to publish the project for Wasm: `dotnet publish -r browser-wasm /p:MSBuildEnableWorkloadResolver=false`. This produces `YourApp.html` and `YourApp.js` files under `bin\<Config>\<TFM>\browser-wasm\native`. The former can be opened in the browser, the latter - run via NodeJS.
