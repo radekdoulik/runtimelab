@@ -138,7 +138,9 @@ class Devirtualization
         [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "MakeGenericType - Intentional")]
         public static void Run()
         {
+#if !CODEGEN_WASM
             TestIntf1(new Intf1Impl(), 123);
+#endif
             TestIntf1((IIntf1)new Intf1CastableImpl(), 456);
 
             TestIntf2(new Intf2Impl1(), 123);
