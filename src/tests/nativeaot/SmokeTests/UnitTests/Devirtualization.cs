@@ -140,8 +140,8 @@ class Devirtualization
         {
 #if !CODEGEN_WASM
             TestIntf1(new Intf1Impl(), 123);
-#endif
             TestIntf1((IIntf1)new Intf1CastableImpl(), 456);
+#endif
 
             TestIntf2(new Intf2Impl1(), 123);
             TestIntf2((IIntf2)Activator.CreateInstance(typeof(Intf2Impl2<>).MakeGenericType(GetObject())), 456);
