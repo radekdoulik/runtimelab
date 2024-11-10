@@ -2496,7 +2496,8 @@ void Llvm::emitJumpToThrowHelper(Value* jumpCondValue, CorInfoHelpFunc helperFun
 
         // For code with throw helper blocks, create and use the shared helper block for raising the exception.
         llvm::BasicBlock* throwLlvmBlock;
-        ThrowHelperKey throwBlockKey{_compiler->bbThrowIndex(CurrentBlock()), helperFunc};
+        Compiler::AcdKeyDesignator dsg = Compiler::AcdKeyDesignator::KD_NONE;
+        ThrowHelperKey throwBlockKey{_compiler->bbThrowIndex(CurrentBlock(), &dsg), helperFunc};
         if (!m_throwHelperBlocksMap.Lookup(throwBlockKey, &throwLlvmBlock))
         {
             LlvmBlockRange* currentLlvmBlocks = getCurrentLlvmBlocks();
