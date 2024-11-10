@@ -1373,7 +1373,7 @@ void Compiler::fgRemoveEHTableEntry(unsigned XTnum)
 {
     assert(compHndBBtabCount > 0);
     assert(XTnum < compHndBBtabCount);
-    assert(fgAddCodeList == nullptr);
+    assert((fgAddCodeDscMap == nullptr) || (fgAddCodeDscMap->GetCount() == 0));
 
     EHblkDsc* HBtab;
 
