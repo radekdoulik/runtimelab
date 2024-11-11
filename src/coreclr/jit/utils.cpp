@@ -1683,8 +1683,10 @@ void HelperCallProperties::init()
             // GETREFANY is pure up to the value of the struct argument. We
             // only support that when it is not an implicit byref.
             case CORINFO_HELP_GETREFANY:
+#ifndef TARGET_WASM
 #ifndef WINDOWS_AMD64_ABI
                 isPure = true;
+#endif
 #endif
                 break;
 
