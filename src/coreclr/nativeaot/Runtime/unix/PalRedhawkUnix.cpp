@@ -732,19 +732,6 @@ REDHAWK_PALEXPORT bool REDHAWK_PALAPI PalStartBackgroundWork(_In_ BackgroundCall
 
 REDHAWK_PALIMPORT bool REDHAWK_PALAPI PalSetCurrentThreadName(const char* name)
 {
-<<<<<<< HEAD
-    const int MAX_THREAD_NAME_SIZE = 15;
-    char name_copy[MAX_THREAD_NAME_SIZE + 1];
-    strncpy(name_copy, name, MAX_THREAD_NAME_SIZE);
-    name_copy[MAX_THREAD_NAME_SIZE] = '\0';
-#ifdef __APPLE__
-    pthread_setname_np(name_copy);
-#else
-#if !HOST_WASM
-    pthread_setname_np(pthread_self(), name_copy);
-#endif // !HOST_WASM
-#endif //__APPLE__
-=======
     // Ignore requests to set the main thread name because
     // it causes the value returned by Process.ProcessName to change.
     if ((pid_t)PalGetCurrentOSThreadId() != getpid())
@@ -753,7 +740,6 @@ REDHAWK_PALIMPORT bool REDHAWK_PALAPI PalSetCurrentThreadName(const char* name)
         (void)setNameResult; // used
         assert(setNameResult == 0);
     }
->>>>>>> abde3f9498f09b5016a7a0d7d2e1b81ce5c1b614
     return true;
 }
 

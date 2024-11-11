@@ -6887,15 +6887,11 @@ private:
     PhaseStatus fgCreateThrowHelperBlocks();
 
 public:
-<<<<<<< HEAD
 #if defined(TARGET_WASM) // Accessed in llvmcodegen.cpp
     static unsigned acdHelper(SpecialCodeKind codeKind);
 #endif
 
-=======
-
     bool fgHasAddCodeDscMap() const { return fgAddCodeDscMap != nullptr; }
->>>>>>> abde3f9498f09b5016a7a0d7d2e1b81ce5c1b614
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, BasicBlock* fromBlock);
     bool fgUseThrowHelperBlocks();
     void fgCreateThrowHelperBlockCode(AddCodeDsc* add);

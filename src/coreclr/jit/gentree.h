@@ -4848,6 +4848,11 @@ public:
         return m_lateNode == nullptr ? m_earlyNode : m_lateNode;
     }
 
+    GenTree*& GetNodeRef()
+    {
+        return m_lateNode == nullptr ? m_earlyNode : m_lateNode;
+    }
+
     bool IsArgAddedLate() const;
 
     bool IsUserArg() const;
