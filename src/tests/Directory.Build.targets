@@ -624,4 +624,13 @@
           Condition="'$(_WillCLRTestProjectBuild)' == 'true' and '$(CLRTestKind)' == 'BuildAndRun'"
           DependsOnTargets="ComputeResolvedFilesToPublishList;LinkNative" />
 
+  <Target Name="AddNativeStaticTestLibrariesForNativeAotLinking"
+          AfterTargets="CopyAllNativeProjectReferenceBinaries"
+          BeforeTargets="Build"
+          Condition="'$(TestBuildMode)' == 'nativeaot'">
+    <ItemGroup>
+      <NativeLibrary Include="$(OutDir)/*$(StaticLibSuffix)" />
+    </ItemGroup>
+  </Target>
+  
 </Project>
