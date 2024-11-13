@@ -4848,7 +4848,7 @@ public:
         return m_lateNode == nullptr ? m_earlyNode : m_lateNode;
     }
 
-    GenTree*& GetNodeRef()
+    GenTree*& NodeRef()
     {
         return m_lateNode == nullptr ? m_earlyNode : m_lateNode;
     }
