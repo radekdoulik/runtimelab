@@ -2097,7 +2097,7 @@ public:
 
     void ClearUnsigned()
     {
-        assert(OperIs(GT_ADD, GT_SUB, GT_CAST) || OperIsMul());
+        assert(OperIs(GT_ADD, GT_SUB, GT_CAST, GT_LE, GT_LT, GT_GT, GT_GE) || OperIsMul());
         gtFlags &= ~GTF_UNSIGNED;
     }
 
@@ -4844,6 +4844,11 @@ public:
     // This is the same as GetEarlyNode() until morph.
     // After lowering, this is a PUTARG_* node.
     GenTree* GetNode()
+    {
+        return m_lateNode == nullptr ? m_earlyNode : m_lateNode;
+    }
+
+    GenTree*& NodeRef()
     {
         return m_lateNode == nullptr ? m_earlyNode : m_lateNode;
     }
