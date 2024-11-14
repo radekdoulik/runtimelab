@@ -22,16 +22,34 @@ namespace SharedLibrary
             return 10;
         }
 
+        [UnmanagedCallersOnly(EntryPoint = "returns-primitive-int")]
+        public static unsafe int wasmExportReturnsPrimitiveInt()
+        {
+            return 10;
+        }
+
         [UnmanagedCallersOnly(EntryPoint = "ReturnsPrimitiveBool", CallConvs = new Type[] { typeof(CallConvStdcall) })]
         public static bool ReturnsPrimitiveBool()
         {
             return true;
         }
 
+        [UnmanagedCallersOnly(EntryPoint = "returns-primitive-bool")]
+        public static unsafe int wasmExportReturnsPrimitiveBool()
+        {
+            return 1;
+        }
+
         [UnmanagedCallersOnly(EntryPoint = "ReturnsPrimitiveChar", CallConvs = new Type[] { typeof(CallConvStdcall) })]
         public static char ReturnsPrimitiveChar()
         {
             return 'a';
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "returns-primitive-char")]
+        public static unsafe int wasmExportReturnsPrimitiveChar()
+        {
+            return (int)'a';
         }
 
         [UnmanagedCallersOnly(EntryPoint = "EnsureManagedClassLoaders", CallConvs = new Type[] { typeof(CallConvStdcall) })]
@@ -41,8 +59,21 @@ namespace SharedLibrary
             random.Next();
         }
 
+        [UnmanagedCallersOnly(EntryPoint = "ensure-managed-class-loaders")]
+        public static unsafe void wasmExportEnsureManagedClassLoaders()
+        {
+            Random random = new Random();
+            random.Next();
+        }
+
         [UnmanagedCallersOnly(EntryPoint = "CheckSimpleExceptionHandling", CallConvs = new Type[] { typeof(CallConvStdcall) })]
         public static int CheckSimpleExceptionHandling()
+        {
+            return DoCheckSimpleExceptionHandling();
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "check-simple-exception-handling")]
+        public static unsafe int wasmExportCheckSimpleExceptionHandling()
         {
             return DoCheckSimpleExceptionHandling();
         }
@@ -95,6 +126,12 @@ namespace SharedLibrary
             return DoCheckSimpleGCCollect();
         }
 
+        [UnmanagedCallersOnly(EntryPoint = "check-simple-gc-collect")]
+        public static unsafe int wasmExportCheckSimpleGcCollect()
+        {
+            return DoCheckSimpleGCCollect();
+        }
+
         public static int DoCheckSimpleGCCollect()
         {
             string myString = string.Format("Hello {0}", "world");
@@ -108,14 +145,13 @@ namespace SharedLibrary
 
             return s_collected ? (myString == "Hello world" ? 100 : 1) : 2;
         }
-    }
-}
 
-// Implements the component model interface defined in wit/world.wit
-namespace LibraryWorld
-{
-    public class LibraryWorldImpl : ILibraryWorld
-    {
+        [UnmanagedCallersOnly(EntryPoint = "test-http")]
+        public static unsafe void wasmExportTestHttp(int p0)
+        {
+            TestHttp((((ushort)p0)));
+        }
+
         public static void TestHttp(ushort port)
         {
             var stopwatch = new Stopwatch();
@@ -187,10 +223,13 @@ namespace LibraryWorld
             impatientClient.Timeout = TimeSpan.FromMilliseconds(100);
             var stopwatch = new Stopwatch();
             stopwatch.Start();
-            try {
+            try
+            {
                 await impatientClient.GetAsync($"{urlBase}/slow-hello");
                 throw new Exception("request to /slow-hello endpoint should have timed out");
-            } catch (TaskCanceledException _) {
+            }
+            catch (TaskCanceledException _)
+            {
                 // The /slow-hello endpoint takes 10 seconds to return a
                 // response, whereas we've set a 100ms timeout, so this is
                 // expected.
@@ -198,37 +237,6 @@ namespace LibraryWorld
             stopwatch.Stop();
             Trace.Assert(stopwatch.ElapsedMilliseconds >= 100);
             Trace.Assert(stopwatch.ElapsedMilliseconds < 1000);
-        }
-
-        public static int ReturnsPrimitiveInt()
-        {
-            return 10;
-        }
-
-        public static bool ReturnsPrimitiveBool()
-        {
-            return true;
-        }
-
-        public static uint ReturnsPrimitiveChar()
-        {
-            return (uint)'a';
-        }
-
-        public static void EnsureManagedClassLoaders()
-        {
-            Random random = new Random();
-            random.Next();
-        }
-
-        public static int CheckSimpleExceptionHandling()
-        {
-            return SharedLibrary.ClassLibrary.DoCheckSimpleExceptionHandling();
-        }
-
-        public static int CheckSimpleGcCollect()
-        {
-            return SharedLibrary.ClassLibrary.DoCheckSimpleGCCollect();
         }
     }
 

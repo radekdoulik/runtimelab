@@ -33,7 +33,6 @@ cp SharedLibraryDriver native/SharedLibrary
 
   <ItemGroup>
     <Compile Include="SharedLibrary.cs" />
-    <Compile Include="Library.cs" />
   </ItemGroup>
 
   <PropertyGroup>
