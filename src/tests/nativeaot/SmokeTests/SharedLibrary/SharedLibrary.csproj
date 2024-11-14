@@ -59,6 +59,6 @@ cp SharedLibraryDriver$(NativeExtension) native/SharedLibrary$(NativeExtension)
 
   <ItemGroup Condition="'$(WasiReactorTestUsingNodeJS)' == 'true'">
     <Content Include="SharedLibraryDriver.mjs" CopyToOutputDirectory="PreserveNewest" />
-    <CustomLinkerArg Include="-Wl,--component-type,&quot;$(MSBuildProjectDirectory.Replace(&quot;\&quot;, &quot;/&quot;))/LibraryWorld_component_type.wit&quot;" />
+    <CustomLinkerArg Include="-Wl,--component-type,&quot;$(MSBuildProjectDirectory.Replace(&quot;\&quot;, &quot;/&quot;))/wit/world.wit&quot;" />
   </ItemGroup>
 </Project>
