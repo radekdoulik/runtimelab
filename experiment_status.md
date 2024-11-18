@@ -6,11 +6,13 @@
   - The `MethodDesc::DoPrestub()` entry point should be referenced for many of the APIs that can produce `PCODE`. (for example, `GetStubForInteropMethod()`).
 - The ILStubResolver deletes the associated IL post JIT - `ILStubResolver::ClearCompileTimeState`.
   - This means that when an IL stub will be the interpreted, clean-up of generated IL needs to be avoided.
+    - If a future CoreCLR interpreter uses a converted byte code approach, then getting rid of the IL may not be an issue.
   - See `CEEInfo::getMethodInfo()` for how IL stubs are impacted, see `MethodDesc::IsWrapperStub()`.
 - Created a new `Precode` type to represent the interpreter entry point.
   - See `MethodDescCallSite` for the common ways CoreCLR calls from C++ into managed code. Specifically, `CallTargetWorker()` is of note.
   - The `Precode` approach seems to be a valid way to loop into the execution engine without too much disruption.
 - Passing around stub context to P/Invokes needs to be considered in the interpreter case.
+  - Disabling P/Invoke stub sharing would avoid this need. ReadyToRun is prior art for disabling stub sharing.
 
 # Status 01-NOV-2024
 
