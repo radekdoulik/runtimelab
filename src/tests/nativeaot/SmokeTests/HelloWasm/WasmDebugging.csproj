@@ -6,7 +6,7 @@
     <RequiresProcessIsolation>true</RequiresProcessIsolation>
     <ReferenceXUnitWrapperGenerator>false</ReferenceXUnitWrapperGenerator>
 
-    <!-- Only works without optimizations now. -->
+    <!-- Only works without optimizations for now. -->
     <CLRTestTargetUnsupported Condition="'$(Configuration)' != 'Debug'">true</CLRTestTargetUnsupported>
   </PropertyGroup>
 
