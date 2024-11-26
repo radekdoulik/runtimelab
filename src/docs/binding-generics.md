@@ -511,8 +511,7 @@ struct FrozenStruct : ISwiftObject, IPrintableProtocol
 Adding constraints on a type's generic parameters is also straightforward, with small adjustments necessary to the initializer and metadata accessor functions. Let's revisit the `Pair` example:
 
 ```swift
-@frozen 
-public struct PairNonFrozen<T: Printable, U: Printable> { 
+public struct Pair<T: Printable, U: Printable> { 
     public var first: T 
     public var second: U
  
