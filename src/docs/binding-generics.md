@@ -460,20 +460,22 @@ public func printPrintable<T: Printable>(data: T) {
 // Equivalent to: public func printPrintable<T>(data: T) where T : Printable
 ```
 
+When a function is declared with a generic argument, an extra implicit argument is added to the end representing the type metadata of the generic argument (see above). If that generic argument is constrained by one or more protocols, the type metadata is followed by a pointer to the protocol witness table for each protocol. In the case of multiple protocols, e.g. T: P3 & P1 & P2, the protocol witness tables are ordered lexically by fully qualified name of the protocol. For detailed description of Metadata accessor refer to [runtime metadata doc](runtime-metadata.md).
+
 This can be projected into C\# as follows:
 
 ```csharp
-public interface ISwiftPrintableProtocol
+public interface IPrintableProtocol
 {
     public void PrintMe();
-    public abstract static NativeHandle GetISwiftPrintableProtocolWitnessTable();
+    public abstract static NativeHandle GetIPrintableProtocolWitnessTable();
 
 }
 
-public static void PrintPrintable<T>(T data) where T : ISwiftObject, ISwiftPrintableProtocol
+public static void PrintPrintable<T>(T data) where T : ISwiftObject, IPrintableProtocol
 {
     var metadata = TypeMetadata.GetTypeMetadataOrThrow<T>();
-    var protocolWitnessTable = T.GetISwiftPrintableProtocolWitnessTable();
+    var protocolWitnessTable = T.GetIPrintableProtocolWitnessTable();
     PInvokePrintPrintable(data.GetPayload(), metadata, protocolWitnessTable);
 }
 
@@ -482,23 +484,21 @@ public static void PrintPrintable<T>(T data) where T : ISwiftObject, ISwiftPrint
 private static extern void PInvokePrintPrintable(NativeHandle data, TypeMetadata metadata, NativeHandle protocolWitnessTable);
 ```
 
-The only ABI difference is that some Swift function will expect to be passed Protocol Witness Table for the generic types at the end of the argument list.
-
 Then a type implementing the interface could look like:
 
 ```csharp
 [StructLayout(LayoutKind.Sequential, Size = /* Extract size */)]
-struct FrozenStruct : ISwiftObject, ISwiftPrintableProtocol
+struct FrozenStruct : ISwiftObject, IPrintableProtocol
 {
     // Other members
 
-    public static NativeHandle GetISwiftPrintableProtocolWitnessTable()
+    public static NativeHandle GetIPrintableProtocolWitnessTable()
     {
         // This method extracts the witness table symbol from the dynamic library and should be cached.
         return GetWitnessValueTable("...");
     }
 
-    public unsafe void PrintMe()
+    public void PrintMe()
     {
         var self = new SwiftSelf<FrozenStruct>(this);
         PInvokePrintMe(self);
@@ -532,8 +532,8 @@ The corresponding C\# projection would be:
 
 ```csharp
 class Pair<T, U> : ISwiftObject
-    where T : ISwiftPrintableProtocol
-    where U : ISwiftPrintableProtocol
+    where T : IPrintableProtocol
+    where U : IPrintableProtocol
 {
 
     private static nuint PayloadSize =  /* Extract size */;
@@ -551,8 +551,8 @@ class Pair<T, U> : ISwiftObject
         var nativeHandleFirst = Runtime.GetPayload(ref first);
         var nativeHandleSecond = Runtime.GetPayload(ref second);
 
-        var printableProtocolWitnessTableT = T.GetISwiftPrintableProtocolWitnessTable();
-        var printableProtocolWitnessTableU = U.GetISwiftPrintableProtocolWitnessTable();
+        var printableProtocolWitnessTableT = T.GetIPrintableProtocolWitnessTable();
+        var printableProtocolWitnessTableU = U.GetIPrintableProtocolWitnessTable();
 
         PairPInvokes.Pair(swiftIndirectResult, nativeHandleFirst, nativeHandleSecond, firstMetadata, secondMetadata, printableProtocolWitnessTableT, printableProtocolWitnessTableU);
     }
@@ -565,8 +565,8 @@ class Pair<T, U> : ISwiftObject
             var firstMetadata = GetTypeMetadataOrThrow<T>();
             var secondMetadata = GetTypeMetadataOrThrow<U>();
 
-            var printableProtocolWitnessTableT = T.GetISwiftPrintableProtocolWitnessTable();
-            var printableProtocolWitnessTableU = U.GetISwiftPrintableProtocolWitnessTable();
+            var printableProtocolWitnessTableT = T.GetIPrintableProtocolWitnessTable();
+            var printableProtocolWitnessTableU = U.GetIPrintableProtocolWitnessTable();
 
             // Might be handled differently due to the metadata lowering https://github.com/dotnet/runtimelab/pull/2810
 
@@ -594,15 +594,15 @@ acceptHashable(data: 3)
 This would map into c# as described above into:
 
 ```csharp
-public interface ISwiftIHashable
+public interface IHashable
 {
-    public abstract static NativeHandle GetISwiftHashableProtocolWitnessTable();
+    public abstract static NativeHandle GetIHashableProtocolWitnessTable();
 }
 
-public static void AcceptHashable<T>(T data) where T : ISwiftObject, ISwiftHashable
+public static void AcceptHashable<T>(T data) where T : ISwiftObject, IHashable
 {
     var metadata = TypeMetadata.GetTypeMetadataOrThrow<T>();
-    var protocolWitnessTable = T.GetISwiftHashableProtocolWitnessTable();
+    var protocolWitnessTable = T.GetIHashableProtocolWitnessTable();
     PInvokeAcceptHashable(data.GetPayload(), metadata, protocolWitnessTable);
 }
 
@@ -611,12 +611,12 @@ public static void AcceptHashable<T>(T data) where T : ISwiftObject, ISwiftHasha
 private static extern void PInvokeAcceptHashable(NativeHandle data, TypeMetadata metadata, NativeHandle protocolWitnessTable);
 ```
 
-We would be able to call `AcceptHashable<T>` using a type that implements both `ISwiftObject` and `ISwiftHashable`, but we would not be able to call it using, for example, `System.Int64`.
+We would be able to call `AcceptHashable<T>` using a type that implements both `ISwiftObject` and `IHashable`, but we would not be able to call it using, for example, `System.Int64`.
 
 One way to solve this problem is by creating a wrapper struct for each of the types, which would implement the necessary interfaces:
 
 ```csharp
-public struct SwiftIntWrapper : ISwiftObject, ISwiftIHashable, ...
+public struct SwiftIntWrapper : ISwiftObject, IHashable, ...
 {
     nint value;
 
