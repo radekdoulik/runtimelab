@@ -354,6 +354,33 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 ## Functions that don't use any Mono APIs
 These functions might still use glib APIs for memory allocation, bitset, hashtable or linked list.
 
+* interp_add_ins_explicit
+* interp_insert_ins
+* interp_clear_ins
+* interp_ins_is_nop
+* interp_prev_ins
+* interp_next_ins
+* get_stack_size
+* get_tos_offset
+* interp_create_stack_var
+* set_type_and_var
+* set_simple_type_and_var
+* push_type
+* push_simple_type
+* push_type_vt
+* push_types
+* interp_get_mov_for_type
+* get_mint_type_size
+* try_fold_one_arg_branch
+* interp_add_conv
+* try_fold_two_arg_branch
+* unary_arith_op(TransformData *td, int mint_op)
+* can_store
+* emit_ldptr
+* mono_interp_print_td_code
+* interp_ip_in_cbb
+* interp_ins_is_ldc
+* get_type_comparison_op
 * generate_compacted_code
 * mono_jiterp_insert_ins
 * mono_interp_transform_init
