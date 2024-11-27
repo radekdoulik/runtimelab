@@ -6,7 +6,7 @@ This documents lists all functions in the transform.c file in the Mono interpret
 
 There are various cases when a call to runtime helper is needed to perform some operation. This is likely different for Mono (may use a different set of helpers or may not need a helper). So handling such cases will likely need to be added to the transformation and execution phases. Precise details on where and how are beyond the scope of this document.
 
-#  MonoClass, MonoField, MonoMethod and MonoType member access helpers
+#  MonoClass, MonoField, MonoMethod and MonoType member access helpers (m_ macros map)
 The following functions are helpers used to access fields in MonoClass, MonoField, MonoMethod and MonoType. They are used all over the place, so they are described here instead of at the specific places they are used.
  * m_class_get_byval_arg - N.A. on CoreCLR
  * m_class_get_element_class -> getChildType
@@ -38,6 +38,66 @@ The following functions are helpers used to access fields in MonoClass, MonoFiel
 
 # Functions that have calls to Mono APIs
 For each Mono API or a Mono specific code sequence, it describes how to replace it using JIT2EEInterface methods. In cases when the whole function would be reimplemented in a slightly different way instead of just replacing Mono API calls by their JIT2EEInterface equivalents, a high level description of the function behavior with details on what JIT2EEInterface methods to use is provided.
+
+### has_intrinsic_attribute
+* replace with isIntrinsic call
+
+### has_doesnotreturn_attribute
+* Checks whether the method has "System.Diagnostics.CodeAnalysis", "DoesNotReturnAttribute"
+* Use getMethodAttribs and check for the "DoesNotReturnAttribute" attribute
+
+### get_type_from_stack
+* Gets mono type from interp's stack type. uses mono_defaults (src/mono/mono/metadata/class-internals.h) to return types from mono_defaults classes (mapped from stack type)
+* Update to return CoreCLR class handle
+* We might need to extend ICorStaticInfo API to get the default types or implement local helper.
+
+### mono_mint_type
+* Returns interp's mint type for type
+* m_class_is_enumtype -> isEnum
+* mono_class_enum_basetype_internal -> isEnum - underlyingType parameter
+* m_class_get_byval_arg - N.A. on CoreCLR
+
+### interp_create_var_explicit
+* m_class_is_simd_type - check the m_ macros map above
+* mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+
+### interp_create_dummy_var
+* m_class_get_byval_arg (mono_defaults.void_class) -> see get_type_from_stack
+* Update to use CoreCLR void class
+
+### interp_create_ref_handle_var
+* m_class_get_byval_arg (mono_defaults.int_class) -> see get_type_from_stack
+* Update to use CoreCLR int class
+
+### push_var
+* mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+
+### push_mono_type
+* mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+* m_type_is_byref -> asCorInfoType() == CORINFO_TYPE_BYREF
+
+### merge_stack_type_information
+* This uses mono class field in the state, that should be resolved with state containing CoreCLR class handles instead
+
+### handle_branch
+* mono_threads_are_safepoints_enabled -> N.A. on CoreCLR? TODO: Jan V., do you have more insight from the CoreCLR side and also from execution phase context?
+* Mono sets this flag by:
+        switch (p) {
+        case MONO_THREADS_SUSPEND_FULL_COOP:
+        case MONO_THREADS_SUSPEND_HYBRID:
+                return TRUE;
+        default:
+                return FALSE;
+        }
+
+### two_arg_branch
+* m_class_get_name -> getClassNameFromMetadata
+
+### binary_arith_op
+* m_class_get_name -> getClassNameFromMetadata
+
+### shift_op
+* m_class_get_name -> getClassNameFromMetadata
 
 ### tiered_patcher
 * mono_method_signature_internal -> getMethodSig
@@ -352,10 +412,13 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
   * Used by CEE_LDTOKEN
 
 ## Functions that don't use any Mono APIs
-These functions might still use glib APIs for memory allocation, bitset, hashtable or linked list.
+These functions might still use glib APIs for memory allocation, bitset, hashtable or linked list. Or they use mono_interp_* or mono_mint_* functions, which are local to the interpreter.
 
+* interp_new_ins
+* interp_add_ins
 * interp_add_ins_explicit
 * interp_insert_ins
+* interp_insert_ins_bb
 * interp_clear_ins
 * interp_ins_is_nop
 * interp_prev_ins
@@ -365,6 +428,8 @@ These functions might still use glib APIs for memory allocation, bitset, hashtab
 * interp_create_stack_var
 * set_type_and_var
 * set_simple_type_and_var
+* interp_make_var_renamable
+* interp_create_renamed_fixed_var
 * push_type
 * push_simple_type
 * push_type_vt
@@ -383,6 +448,7 @@ These functions might still use glib APIs for memory allocation, bitset, hashtab
 * get_type_comparison_op
 * check_stack_helper
 * ensure_stack
+* realloc_stack
 * push_type_explicit
 * fixup_newbb_stack_locals
 * init_bb_stack_state
