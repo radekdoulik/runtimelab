@@ -44,7 +44,9 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 
 ### has_doesnotreturn_attribute
 * Checks whether the method has "System.Diagnostics.CodeAnalysis", "DoesNotReturnAttribute"
-* Use getMethodAttribs and check for the "DoesNotReturnAttribute" attribute
+* ICorStaticInfo doesn't contain API to access custom attributes. Possible solutions:
+   - avoid calls to has_doesnotreturn_attribute, it is part of inlining process, use just canInline in these places
+   - add new method to the ICorStaticInfo, similar to isIntrinsic (that might involve extending the WellKnownAttributes enum)
 
 ### get_type_from_stack
 * Gets mono type from interp's stack type. uses mono_defaults (src/mono/mono/metadata/class-internals.h) to return types from mono_defaults classes (mapped from stack type)
@@ -80,7 +82,7 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 * This uses mono class field in the state, that should be resolved with state containing CoreCLR class handles instead
 
 ### handle_branch
-* mono_threads_are_safepoints_enabled -> N.A. on CoreCLR? TODO: Jan V., do you have more insight from the CoreCLR side and also from execution phase context?
+* mono_threads_are_safepoints_enabled -> N.A. on CoreCLR
 * Mono sets this flag by:
         switch (p) {
         case MONO_THREADS_SUSPEND_FULL_COOP:
@@ -89,6 +91,7 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
         default:
                 return FALSE;
         }
+* Always add safepoints (as if the mono_threads_are_safepoints_enabled always returned true)
 
 ### two_arg_branch
 * m_class_get_name -> getClassNameFromMetadata
