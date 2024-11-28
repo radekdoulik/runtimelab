@@ -102,6 +102,55 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 ### shift_op
 * m_class_get_name -> getClassNameFromMetadata
 
+### get_arg_type_exact
+*  mono_method_signature_internal -> getMethodSig
+*  m_class_get_byval_arg - N.A. on CoreCLR
+
+### load_arg
+* mono_method_signature_internal -> getMethodSig
+  mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+* mono_method_signature_internal (td->method)->pinvoke && !mono_method_signature_internal (td->method)->marshalling_disabled -> (getMethodAttribs(...) & CORINFO_FLG_PINVOKE) && pInvokeMarshalingRequired(...)
+* Simplify code with 2 following calls to use getClassSize
+* mono_class_native_size
+* mono_class_value_size
+
+### store_arg
+* Same changes as load_arg above
+
+### load_local (TransformData *td, int local)
+* mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+
+### mono_interp_jit_call_supported
+* Return false, we will not support JIT (at least not in first version)
+
+### jit_call2_supported
+* Remove or return false, we will not support JIT (at least not in first version)
+
+### interp_generate_mae_throw
+### interp_generate_void_throw
+### interp_generate_ipe_throw_with_msg
+* Calls method access error icall
+* mono_get_jit_icall_info
+* Reimplement as part of the error handling replacement
+
+### interp_generate_ipe_bad_fallthru
+* mono_disasm_code_one -> N.A. on CoreCLR?
+ - ILCode is available with getMethodInfo
+ - TODO: check whether JIT does IL disassembly
+* Reimplement as part of the error handling replacement
+
+### interp_create_var
+* mono_type_size -> getClassSize
+
+### interp_dump_ins_data
+* m_class_get_name -> getClassNameFromMetadata
+* m_class_get_name_space -> getClassNameFromMetadata
+* mono_method_full_name -> printMethodName
+  - the mono method is part of mono's debug helpers. Either replace with printMethodName or implement debug helper
+
+### mono_interp_print_code
+* mono_method_full_name -> printMethodName (see more info above in interp_dump_ins_data)
+
 ### tiered_patcher
 * mono_method_signature_internal -> getMethodSig
 
@@ -457,6 +506,12 @@ These functions might still use glib APIs for memory allocation, bitset, hashtab
 * init_bb_stack_state
 * one_arg_branch
 * store_local
+* init_last_ins_call
+* imethod_alloc0
+* interp_generate_icall_throw
+* interp_dump_compacted_ins
+* interp_dump_code
+* interp_dump_ins
 * get_data_item_wide_index
 * get_data_item_index
 * get_data_item_index_imethod
