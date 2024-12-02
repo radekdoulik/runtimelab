@@ -110,7 +110,7 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 * mono_method_signature_internal -> getMethodSig
   mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
 * mono_method_signature_internal (td->method)->pinvoke && !mono_method_signature_internal (td->method)->marshalling_disabled -> (getMethodAttribs(...) & CORINFO_FLG_PINVOKE) && pInvokeMarshalingRequired(...)
-* Simplify code with 2 following calls to use getClassSize
+* Simplify code with 2 following calls to just use getClassSize
 * mono_class_native_size
 * mono_class_value_size
 
@@ -136,7 +136,7 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 ### interp_generate_ipe_bad_fallthru
 * mono_disasm_code_one -> N.A. on CoreCLR?
  - ILCode is available with getMethodInfo
- - TODO: check whether JIT does IL disassembly
+ - we can reuse code from JIT to disassemble IL
 * Reimplement as part of the error handling replacement
 
 ### interp_create_var
@@ -150,6 +150,65 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 
 ### mono_interp_print_code
 * mono_method_full_name -> printMethodName (see more info above in interp_dump_ins_data)
+
+### interp_method_get_header
+* This can be removed and replace calls to it with getMethodInfo and use CORINFO_METHOD_INFO fields
+
+### interp_emit_ldobj
+* m_class_get_byval_arg - N.A. on CoreCLR
+* mono_class_value_size -> getClassSize
+
+### interp_emit_stobj
+* m_class_get_byval_arg - N.A. on CoreCLR
+* m_class_has_references -> getClassAttribs() & CORINFO_FLG_CONTAINS_GC_PTR
+* mono_class_value_size -> getClassSize
+
+### interp_emit_ldelema
+* m_class_get_element_class -> getChildType
+* m_class_get_rank -> getArrayRank
+* mono_class_array_element_size  -> getChildType, getClassSize
+* m_class_get_byval_arg - N.A. on CoreCLR
+* m_class_is_valuetype  -> isValueClass
+
+### interp_emit_metadata_update_ldflda
+* m_field_is_from_update -> getFieldInfo, CORINFO_FIELD_INFO::fieldFlags & CorInfoFlag.CORINFO_FLG_EnC
+* m_type_is_byref -> asCorInfoType() == CORINFO_TYPE_BYREF
+* mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+* m_class_get_byval_arg - N.A. on CoreCLR
+* mono_metadata_make_token - not needed, we will not use the tokens here anymore
+* mono_metadata_update_get_field_idx -> N.A. on CoreClr, we will change the MINT_METADATA_UPDATE_LDFLDA instruction to use helper function instead of the token, CORINFO_HELP_GETFIELDADDR in this case
+
+### interp_handle_intrinsics
+Emits code to handle intrinsics or sets the op output parameter
+* m_class_get_byval_arg - N.A. on CoreCLR
+* m_class_get_element_class -> getChildType
+* m_class_get_image -> getMethodInfo, CORINFO_METHOD_INFO::scope
+* m_class_get_name -> getClassNameFromMetadata
+* m_class_get_name_space -> getClassNameFromMetadata
+* m_class_get_nested_in -> N.A., it is used only to get namespace name for nested classes, getClassNameFromMetadata just works for nested classes too 
+* m_class_has_references -> getClassAttribs() & CORINFO_FLG_CONTAINS_GC_PTR
+* m_class_has_ref_fields -> getClassGClayout(classHnd) > 0
+* m_class_is_enumtype -> isEnum
+* m_class_is_valuetype -> isValueClass
+* m_field_get_offset -> getFieldOffset
+* m_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+* m_type_is_byref -> asCorInfoType() == CORINFO_TYPE_BYREF
+* mini_get_underlying_type -> asCorInfoType
+* mini_is_gsharedvt_variable_klass - N.A. on CoreCLR -> treat as always FALSE
+* mini_should_insert_breakpoint - replace by TRUE, always insert breakpoint for S.D.Debugger.Break
+* mono_class_array_element_size -> getChildType, getClassSize
+* mono_class_from_mono_type_internal - N.A., just use CORINFO_CLASS_HANDLE
+* mono_class_get_field_from_name_full -> getFieldInClass and use num instead of name
+* mono_class_get_generic_class -> not needed, only used for mini_is_gsharedvt_variable_klass, which will be always FALSE. it is used here to get generic class parameter type
+* mono_class_init_internal - N.A., classes passed over the Jit2EEInterface are always fully loaded
+* mono_class_is_nullable -> isNullableType
+* mono_class_is_subclass_of_internal (target_method->klass, mono_defaults.array_class, FALSE)
+* mono_class_value_size -> getClassSize
+* mono_field_get_rva -> getFieldInfo and use fieldInfo->fieldLookup.addr
+* mono_method_get_context - it is used to get instantiation argument 0 type - use getTypeInstantiationArgument(cls, 0)
+* mono_type_get_object_checked -> getRuntimeTypePointer
+* mono_type_get_underlying_type -> isEnum - underlyingType parameter or the class itself, when not enum
+* mono_type_size -> getClassSize
 
 ### tiered_patcher
 * mono_method_signature_internal -> getMethodSig
@@ -425,7 +484,7 @@ For each Mono API or a Mono specific code sequence, it describes how to replace 
 * mono_class_is_assignable_from_internal -> compareTypesForCast
   * It is used by CEE_ISINST only to optimize the case when the previous IR was one of the MINT_BOX*
 * mono_class_is_method_ambiguous -> N.A., handling such stuff is hidden behind the Jit2EEInterface
-* mono_class_is_nullable -> isNullable
+* mono_class_is_nullable -> isNullableType
 * mono_class_native_size - N.A., used by mono specific IL opcodes only
 * mono_class_setup_fields - N.A., handling such stuff is hidden behind the Jit2EEInterface
 * mono_class_value_size -> getClassSize
