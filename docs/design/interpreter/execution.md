@@ -28,8 +28,8 @@ This document explicitly doesn't list stuff like locks, hashtable, memory alloca
 
 ## Debugger interface methods
  * BreakPoint - breakpoint set by the debugger triggered in the interpreted code
+ * SingleStep - single step completed
  * Break - System.Diagnostics.Debugger.Break() invoked by the interpreted code
- * ??? Others
 
 ## Profiler interface methods
  * TraceEnterMethod(methodHandle, ???)
@@ -55,18 +55,18 @@ This document explicitly doesn't list stuff like locks, hashtable, memory alloca
 ## MonoClass, MonoMethod and MonoType member access helpers
 The following functions are helpers used to access fields in MonoClass, MonoMethod and MonoType. They are used all over the place, so they are described here instead of at the specific places they are used.
  * m_class_get_byval_arg - N.A. on CoreCLR
- * m_class_get_element_class -> JIT2EEInterface::getChildType
- * m_class_get_image -> JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::scope
- * m_class_get_name -> JIT2EEInterface::getClassNameFromMetadata
- * m_class_get_name_space -> JIT2EEInterface::getClassNameFromMetadata
- * m_class_get_parent -> JIT2EEInterface::getParentType
- * m_class_get_rank -> JIT2EEInterface::getArrayRank
- * m_class_is_byreflike -> JIT2EEInterface::getClassAttribs() & CORINFO_FLG_BYREF_LIKE
- * m_class_is_enumtype -> JIT2EEInterface::isEnum
- * m_class_is_valuetype -> JIT2EEInterface::isValueClass
- * m_method_is_static -> JIT2EEInterface::getMethodAttribs() & CORINFO_FLG_STATIC
- * m_method_is_virtual -> JIT2EEInterface::getMethodAttribs() & CORINFO_FLG_VIRTUAL
- * m_type_is_byref -> JIT2EEInterface::asCorInfoType() == CORINFO_TYPE_BYREF
+ * m_class_get_element_class -> **JIT2EEInterface::getChildType**
+ * m_class_get_image -> **JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::scope**
+ * m_class_get_name -> **JIT2EEInterface::getClassNameFromMetadata**
+ * m_class_get_name_space -> **JIT2EEInterface::getClassNameFromMetadata**
+ * m_class_get_parent -> **JIT2EEInterface::getParentType**
+ * m_class_get_rank -> **JIT2EEInterface::getArrayRank**
+ * m_class_is_byreflike -> **JIT2EEInterface::getClassAttribs() & CORINFO_FLG_BYREF_LIKE**
+ * m_class_is_enumtype -> **JIT2EEInterface::isEnum**
+ * m_class_is_valuetype -> **JIT2EEInterface::isValueClass**
+ * m_method_is_static -> **JIT2EEInterface::getMethodAttribs() & CORINFO_FLG_STATIC**
+ * m_method_is_virtual -> **JIT2EEInterface::getMethodAttribs() & CORINFO_FLG_VIRTUAL**
+ * m_type_is_byref -> **JIT2EEInterface::asCorInfoType() == CORINFO_TYPE_BYREF**
 
 ## Functions in the interp.c
 
@@ -76,7 +76,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
 
 ### debug_enter, DEBUG_LEAVE()
  * Used just for debug build tracing 
- * mono_method_full_name -> JIT2EEInterface::getMethodNameFromMetadata
+ * mono_method_full_name -> **JIT2EEInterface::getMethodNameFromMetadata**
  * mono_thread_internal_current - used for logging purposes only 
 
 ### clear_resume_state
@@ -109,7 +109,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
 ### mono_interp_get_imethod
  * Get an existing or create a new InterpMethod for a MonoMethod
  * Creating a new one:
-   * mono_method_signature_internal - to get various details like param_count, has_this etc. to store them in the InterpMethod -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args, CORINFO_METHOD_INFO::args.hasThis() etc.
+   * mono_method_signature_internal - to get various details like param_count, has_this etc. to store them in the InterpMethod -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args, CORINFO_METHOD_INFO::args.hasThis() etc.**
    * m_class_get_parent (method->klass) == mono_defaults.multicastdelegate_class && !strcmp(method->name, "Invoke") - set the InterpMethod::is_invoke
    * There is a special handling of String..ctor method to override its return value to be String for some reason
    * mono_profiler_get_call_instrumentation_flags - call all registered profilers to get the flags of events they are interested in for the specific method and store those on the InterpMethod instance
@@ -126,7 +126,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
    * pinvoke calls
    * icalls
    * JITerpreter jitting call
-   * ??? JIT calls 
+   * JIT calls (these are in fact AOT code calls)
    * Debugger trampolines calls
    * mono_interp_transform_method
    * mono_runtime_class_init_full
@@ -141,7 +141,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
  
 ### stackval_from_data
  * Sets stackval::data::{x} to data bytes from the data argument based on the MonoType passed in. The MonoType argument determines the size of data to copy.
- * The converted form would use CorInfoType as argument. Major part of the usages of stackval_from_data pass in return value type / argument type from a signature. The CORINFO_SIG_INFO contains the CorInfoType directly for return type and JIT2EEInterface::getArgType also returns CorInfoType.
+ * The converted form would use CorInfoType as argument. Major part of the usages of stackval_from_data pass in return value type / argument type from a signature. The CORINFO_SIG_INFO contains the CorInfoType directly for return type and **JIT2EEInterface::getArgType also returns CorInfoType.**
  * It seems that CoreCLR won't need to handle case that's MONO_TYPE_GENERICINST and generic instantiations don't require special handling here.
 
 ### stackval_to_data
@@ -184,16 +184,23 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
  
 ### compute_arg_offset
  * Computes offset of a specific argument in a method signature
- * mono_mint_type - N.A. on CoreCLR, the JIT2EEInterface::getArgType used for iterating over args returns CorInfoType which is an equivalent
+ * mono_mint_type - N.A. on CoreCLR, the **JIT2EEInterface::getArgType used for iterating over args returns CorInfoType which is an equivalent**
 
 ### initialize_arg_offsets
  * Ensures that the arg_offsets member in the InterpMethod is filled in with offsets of arguments in a method signature
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
- * mono_mint_type - N.A. on CoreCLR, the JIT2EEInterface::getArgType used for iterating over args returns CorInfoType which is an equivalent
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
+ * mono_mint_type - N.A. on CoreCLR, the **JIT2EEInterface::getArgType** used for iterating over args returns CorInfoType which is an equivalent
 
 ### get_build_args_from_sig_info
  * Build signature describing structure for PInvoke usage. 
- * mono_class_enum_basetype_internal - JIT2EEInterface::isEnum() returns this too
+ * mono_class_enum_basetype_internal - **JIT2EEInterface::isEnum()** returns this too
+
+### get_interp_to_native_trampoline
+ * mono_aot_get_trampoline
+ * mono_arch_get_interp_to_native_trampoline
+ * mono_tramp_info_register
+
+
 
 ### ves_pinvoke_method
  * Call a PInvoke
@@ -210,31 +217,31 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
 
 ### interp_init_delegate
  * Initialize del->interp_method
- * mono_class_is_abstract -> JIT2EEInterface::getMethodAttribs() & CORINFO_FLG_ABSTRACT
+ * mono_class_is_abstract -> **JIT2EEInterface::getMethodAttribs() & CORINFO_FLG_ABSTRACT**
  * m_class_get_parent (method->klass) == mono_defaults.multicastdelegate_class && !strcmp (name, "Invoke")
    * mono_marshal_get_delegate_invoke
  * mono_create_delegate_trampoline_info
 
 ### interp_delegate_ctor
  * Construct a delegate pointing to an InterpMethod
- * **Use JIT2EEInterface::GetDelegateCtor**
+ * **Use **JIT2EEInterface::GetDelegateCtor**
  * Since this is only called from the transform.c, move it to that file
 
 ### dump_stackval
  * Debug build diagnostics
- * mono_type_get_desc -> JIT2EEInterface::getClassNameFromMetadata()
+ * mono_type_get_desc -> **JIT2EEInterface::getClassNameFromMetadata()**
 
 ### dump_retval
  * Debug build diagnostics
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args::retType
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args::retType**
 
 ### dump_args
  * Debug build diagnostics
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
  
 ### interp_runtime_invoke
- * ??? What is it used for? Seems like reflection, but I'm not sure
- * mono_method_signature_internal - only used to get "hasThis" -> JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args, CORINFO_SIG_INFO::hasThis()
+ * Invoke a method specified by a MonoMethod passing it arguments passed to interp_runtime_invoke
+ * mono_method_signature_internal - only used to get "hasThis" -> **JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args, CORINFO_SIG_INFO::hasThis()**
  * mono_marshal_get_native_wrapper
  * mono_marshal_get_runtime_invoke_full
  * mono_llvm_start_native_unwind
@@ -245,7 +252,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
  * mono_threads_attach_coop - for cases when the interpreted method is invoked by native code -> **ExecutionAPI::DisablePreemptiveGC**
  * mono_domain_get - N.A., obsolete
  * mono_marshal_get_delegate_invoke - when the method to interpret is Invoke method on a class derived from MultiCastDelegate.
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
  * mono_threads_detach_coop -> **ExecutionAPI::EnablePreemptiveGC**
  * mono_llvm_start_native_unwind - throws C++ exception
 
@@ -255,14 +262,16 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
  * mono_marshal_set_last_error
 
 ### init_jit_call_info
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
- * mono_jit_compile_method_jit_only - Compile METHOD using the JIT/AOT(???), even in interpreted mode.
+ * Fill in JitCallInfo data structure with details on a call to AOT compiled managed code, like target address, signature, etc.
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
+ * mono_jit_compile_method_jit_only - Fetch the AOTed code address.
  * mono_aot_get_method_flags - checks for generic shared value type 
  * mono_mint_type -> the CORINFO_METHOD_INFO::args::retType is already what we need here
  * mono_class_from_mono_type_internal - no op on CoreCLR
- * mono_class_value_size - extracts return value size -> JIT2EEInterface::getClassSize(CORINFO_METHOD_INFO::args::retTypeClass)
+ * mono_class_value_size - extracts return value size -> **JIT2EEInterface::getClassSize(CORINFO_METHOD_INFO::args::retTypeClass)**
 
 ### do_jit_call
+ * Invoke AOT compiled managed code
  * mono_llvm_catch_exception
  * mono_get_jit_tls
  * mono_error_set_exception_instance
@@ -274,15 +283,15 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
  * High level overview: Iterate over all arguments of the method to execute and copy them from the trampoline to the appropriate slots on the interpreter stack. Then interpret the method using mono_interp_exec_method. After the interpreted method exits, copy its result back to the trampoline and return to the caller.
  * mono_threads_attach_coop -> **ExecutionAPI::DisablePreemptiveGC**
  * mono_domain_get - N.A., obsolete
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
  * mono_metadata_signature_size
  * mono_arch_get_interp_native_call_info
  * mono_arch_get_native_call_context_args
  * mono_method_signature_has_ext_callconv
  * mono_arch_get_swift_error
- * mono_class_value_size -> JIT2EEInterface::getClassSize(CORINFO_METHOD_INFO::args::retTypeClass)
+ * mono_class_value_size -> **JIT2EEInterface::getClassSize(CORINFO_METHOD_INFO::args::retTypeClass)**
  * mono_class_from_mono_type_internal
- * mono_class_native_size -> JIT2EEInterface::getClassSize(CORINFO_METHOD_INFO::args::retTypeClass)
+ * mono_class_native_size -> **JIT2EEInterface::getClassSize(CORINFO_METHOD_INFO::args::retTypeClass)**
  * mono_threads_detach_coop -> **ExecutionAPI::EnablePreemptiveGC**
  * mono_llvm_start_native_unwind
  * mono_arch_set_native_call_context_ret
@@ -291,14 +300,14 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
 ### interp_create_method_pointer_llvmonly
  * Return an ftndesc for entering the interpreter and executing METHOD.
  * Used externally only
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
  * mono_jit_compile_method_jit_only
  * mono_method_get_name_full
 
 ### interp_create_method_pointer
  * Return a function pointer which can be used to call METHOD using the interpreter. Return NULL for methods which are not supported.
  * Used externally only
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo(), CORINFO_METHOD_INFO::args**
  * mono_metadata_signature_size
  * mono_marshal_get_wrapper_info
  * mono_wasm_get_native_to_interp_trampoline
@@ -314,7 +323,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
 
 ### DUMP_INSTR
  * Debug build diagnostics
- * mono_method_full_name -> JIT2EEInterface::getMethodNameFromMetadata
+ * mono_method_full_name -> **JIT2EEInterface::getMethodNameFromMetadata**
  * mono_thread_internal_current
 
 ### do_init_vtable
@@ -340,14 +349,14 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
 ### mono_interp_exec_method
  * mono_threads_safepoint -> **ExecutionAPI::GCPoll**
  * MINT_NIY
-   * mono_method_full_name - for debug logging -> JIT2EEInterface::getMethodNameFromMetadata
+   * mono_method_full_name - for debug logging -> **JIT2EEInterface::getMethodNameFromMetadata**
  * MINT_BREAK
    * mono_component_debugger ()->user_break -> **DebuggerAPI::Break**
  * MINT_BREAKPOINT
    * mono_break -> **DebuggerAPI::BreakPoint**
  * MINT_TAILCALL_VIRT
    * mono_object_unbox_internal -> **ExecutionAPI::UnBox**
-   * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args
+   * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args**
  * MINT_TAILCALL, MINT_TAILCALL_VIRT, MINT_JMP
    * mono_domain_get ()->stack_overflow_ex -> **ExecutionAPI::GetExceptionById**
  * MINT_CALL_DELEGATE
@@ -360,7 +369,7 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
    * mono_object_unbox_internal -> **ExecutionAPI::UnBox**
  * MINT_CALLVIRT_FAST
    * mono_object_unbox_internal -> **ExecutionAPI::UnBox**
-   * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args
+   * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args**
  * MINT_CALL
    * mono_domain_get ()->stack_overflow_ex -> **ExecutionAPI::GetExceptionById**
  * MINT_B{cc}_R*, MINT_B{cc}_UN_R*
@@ -501,18 +510,18 @@ The following functions are helpers used to access fields in MonoClass, MonoMeth
  * mono_llvm_start_native_unwind - strange, it seems to propagate an exception from the filter while it should be swallowed
 ### interp_run_clause_with_il_state
  * This is used to run clauses that are located in AOTed code
- * ??? Why does it need to do anything interpreter specific? Can there be a case when an AOT-ed clause has interpreted parent method?
+ * It is Mono specific and it is used to run filters and finallys when running LLVM AOT compiled code, as it uses standard native exception handling for AOT code and filters would not work there due to the nature of the native EH.
  * Run exception handling clause
- * mono_method_signature_internal -> JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args
+ * mono_method_signature_internal -> **JIT2EEInterface::getMethodInfo, CORINFO_METHOD_INFO::args**
  * mono_method_get_header_internal
  * mono_metadata_free_mh
  * mono_llvm_start_native_unwind
 ### interp_print_method_counts
  * Internal interpreter diagnostic prints
- * mono_method_full_name -> JIT2EEInterface::getMethodNameFromMetadata
+ * mono_method_full_name -> **JIT2EEInterface::getMethodNameFromMetadata**
 ### metadata_update_backup_frames
  * mono_trace
- * mono_method_full_name -> JIT2EEInterface::getMethodNameFromMetadata
+ * mono_method_full_name -> **JIT2EEInterface::getMethodNameFromMetadata**
 ### interp_invalidate_transformed
  * This is used to invalidate "transformed" state of all InterpMethod instances. It is used when EnC updates stuff.
  * mono_metadata_has_updates
@@ -574,3 +583,92 @@ The list below contains all the functions from interp.c that the runtime can inv
  * interp_entry_llvmonly
  * interp_get_interp_method
  * interp_compile_interp_method
+
+ ## Functions that don't use any Mono APIs
+These functions might still use glib APIs for memory allocation, bitset, hashtable or linked list.
+ * need_native_unwind
+ * lookup_imethod
+ * append_imethod
+ * get_target_imethod
+ * get_vtable_ee_data 
+ * get_method_table
+ * alloc_method_table
+ * get_virtual_method_fast
+ * interp_throw_ex_general
+ * ves_array_calculate_index
+ * imethod_alloc0
+ * get_arg_offset_fast
+ * get_arg_offset
+ * filter_type_for_args_from_sig
+ * build_args_from_sig
+ * interp_frame_arg_to_data
+ * interp_data_to_frame_arg
+ * interp_frame_arg_to_storage
+ * interp_to_native_trampoline
+ * ftnptr_to_imethod
+ * imethod_to_ftnptr
+ * jit_call_cb
+ * do_icall_wrapper
+ * interp_entry_general
+ * interp_entry_llvmonly
+ * interp_get_interp_method
+ * interp_compile_interp_method
+ * interp_no_native_to_managed
+ * no_llvmonly_interp_method_pointer
+ * interp_free_method
+ * mono_interp_enum_hasflag
+ * interp_simd_create
+ * g_warning_d
+ * interp_error_xsx
+ * method_entry
+ * min_f, max_f, min_d, max_d
+ * interp_parse_options
+ * interp_frame_get_ip
+ * interp_frame_iter_init
+ * interp_frame_iter_next
+ * interp_find_jit_info
+ * interp_set_breakpoint
+ * interp_clear_breakpoint
+ * interp_frame_get_jit_info
+ * interp_frame_get_arg
+ * interp_frame_get_local
+ * interp_frame_get_this
+ * interp_frame_get_parent
+ * interp_start_single_stepping
+ * interp_stop_single_stepping
+ * interp_mark_frame_no_ref_slots
+ * interp_mark_no_ref_slots
+ * interp_mark_stack
+ * opcode_count_comparer
+ * interp_print_op_count
+ * interp_add_imethod
+ * imethod_opcount_comparer
+ * interp_print_method_counts
+ * interp_set_optimizations
+ * invalidate_transform
+ * copy_imethod_for_frame
+ * metadata_update_prepare_to_invalidate
+ * interp_copy_jit_info_func
+ * interp_sufficient_stack
+ * interp_cleanup
+ * mono_jiterp_stackval_to_data
+ * mono_jiterp_stackval_from_data
+ * mono_jiterp_get_arg_offset
+ * mono_jiterp_overflow_check_i4
+ * mono_jiterp_overflow_check_u4
+ * mono_jiterp_ld_delegate_method_ptr
+ * mono_jiterp_check_pending_unwind
+ * mono_jiterp_get_context
+ * mono_jiterp_frame_data_allocator_alloc
+ * mono_jiterp_isinst
+ * mono_jiterp_interp_entry
+ * mono_jiterp_get_polling_required_address
+ * mono_jiterp_do_safepoint
+ * mono_jiterp_imethod_to_ftnptr
+ * mono_jiterp_enum_hasflag
+ * mono_jiterp_get_simd_intrinsic
+ * mono_jiterp_get_simd_opcode
+ * mono_jiterp_get_opcode_info
+ * mono_jiterp_placeholder_trace
+ * mono_jiterp_placeholder_jit_call
+ * mono_jiterp_get_interp_entry_func
